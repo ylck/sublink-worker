@@ -7,6 +7,38 @@ import { buildSelectorMembers, buildNodeSelectMembers, uniqueNames } from './hel
 import { emitClashRules, sanitizeClashProxyGroups } from './helpers/clashConfigUtils.js';
 import { normalizeGroupName, findGroupIndexByName } from './helpers/groupNameUtils.js';
 
+/**
+ * Check if the client supports MRS (Meta Rule Set) format
+ * MRS is a binary format supported by Clash Meta/mihomo
+ * Legacy Clash clients need YAML format instead
+ * @param {string} userAgent - Client User-Agent string
+ * @returns {boolean} - True if client supports MRS format
+ */
+function supportsMrsFormat(userAgent) {
+    if (!userAgent) return true; // Default to mrs for unknown clients
+    const ua = userAgent.toLowerCase();
+
+    // Clients confirmed to support MRS format (Clash Meta/mihomo based)
+    if (ua.includes('mihomo') ||
+        ua.includes('meta') ||           // clash.meta, clashx meta, meta-for-android, etc.
+        ua.includes('clash-verge') ||
+        ua.includes('stash') ||
+        ua.includes('verge')) {
+        return true;
+    }
+
+    // Legacy clients that don't support MRS format
+    if (ua.includes('merlin') ||
+        ua.includes('clashforwindows') ||
+        ua.includes('clashforandroid') ||
+        ua.includes('clash/')) {         // 老版本Clash核心 (Clash/v1.x.x)
+        return false;
+    }
+
+    // Default: use mrs for unknown clients (most modern clients support it)
+    return true;
+}
+
 export class ClashConfigBuilder extends BaseConfigBuilder {
     constructor(inputString, selectedRules, customRules, baseConfig, lang, userAgent, groupByCountry = false, enableClashUI = false, externalController, externalUiDownloadUrl) {
         if (!baseConfig) {
@@ -98,7 +130,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     port: proxy.server_port,
                     cipher: proxy.method,
                     password: proxy.password,
-                    ...(typeof proxy.udp !== 'undefined' ? { udp: proxy.udp } : {}),
+                    udp: true,
                     ...(proxy.plugin ? { plugin: proxy.plugin } : {}),
                     ...(proxy.plugin_opts ? { 'plugin-opts': proxy.plugin_opts } : {})
                 };
@@ -111,9 +143,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     uuid: proxy.uuid,
                     alterId: proxy.alter_id ?? 0,
                     cipher: proxy.security,
+                    udp: true,
                     tls: proxy.tls?.enabled || false,
                     servername: proxy.tls?.server_name || '',
-                    'skip-cert-verify': !!proxy.tls?.insecure,
+                    'skip-cert-verify': true,
                     network: proxy.transport?.type || proxy.network || 'tcp',
                     'ws-opts': proxy.transport?.type === 'ws'
                         ? {
@@ -169,8 +202,8 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                         'grpc-service-name': proxy.transport.service_name,
                     } : undefined,
                     tfo: proxy.tcp_fast_open,
-                    'skip-cert-verify': !!proxy.tls?.insecure,
-                    ...(typeof proxy.udp !== 'undefined' ? { udp: proxy.udp } : {}),
+                    udp: true,
+                    'skip-cert-verify': true,
                     ...(proxy.alpn ? { alpn: proxy.alpn } : {}),
                     ...(proxy.packet_encoding ? { 'packet-encoding': proxy.packet_encoding } : {}),
                     'flow': proxy.flow ?? undefined,
@@ -190,7 +223,8 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     down: proxy.down,
                     'recv-window-conn': proxy.recv_window_conn,
                     sni: proxy.tls?.server_name || '',
-                    'skip-cert-verify': !!proxy.tls?.insecure,
+                    udp: true,
+                    'skip-cert-verify': true,
                     ...(proxy.hop_interval !== undefined ? { 'hop-interval': proxy.hop_interval } : {}),
                     ...(proxy.alpn ? { alpn: proxy.alpn } : {}),
                     ...(proxy.fast_open !== undefined ? { 'fast-open': proxy.fast_open } : {}),
@@ -219,7 +253,8 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                         'grpc-service-name': proxy.transport.service_name,
                     } : undefined,
                     tfo: proxy.tcp_fast_open,
-                    'skip-cert-verify': !!proxy.tls?.insecure,
+                    udp: true,
+                    'skip-cert-verify': true,
                     ...(proxy.alpn ? { alpn: proxy.alpn } : {}),
                     'flow': proxy.flow ?? undefined,
                 };
@@ -232,11 +267,12 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     uuid: proxy.uuid,
                     password: proxy.password,
                     'congestion-controller': proxy.congestion_control,
-                    'skip-cert-verify': !!proxy.tls?.insecure,
+                    'skip-cert-verify': true,
                     ...(proxy.disable_sni !== undefined ? { 'disable-sni': proxy.disable_sni } : {}),
                     ...(proxy.tls?.alpn ? { alpn: proxy.tls.alpn } : {}),
                     'sni': proxy.tls?.server_name,
                     'udp-relay-mode': proxy.udp_relay_mode || 'native',
+                    udp: true,
                     ...(proxy.zero_rtt !== undefined ? { 'zero-rtt': proxy.zero_rtt } : {}),
                     ...(proxy.reduce_rtt !== undefined ? { 'reduce-rtt': proxy.reduce_rtt } : {}),
                     ...(proxy.fast_open !== undefined ? { 'fast-open': proxy.fast_open } : {}),
@@ -248,10 +284,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     server: proxy.server,
                     port: proxy.server_port,
                     password: proxy.password,
-                    ...(proxy.udp !== undefined ? { udp: proxy.udp } : {}),
+                    udp: true,
                     ...(proxy.tls?.utls?.fingerprint ? { 'client-fingerprint': proxy.tls.utls.fingerprint } : {}),
                     ...(proxy.tls?.server_name ? { sni: proxy.tls.server_name } : {}),
-                    ...(proxy.tls?.insecure !== undefined ? { 'skip-cert-verify': !!proxy.tls.insecure } : {}),
+                    'skip-cert-verify': true,
                     ...(proxy.tls?.alpn ? { alpn: proxy.tls.alpn } : {}),
                     ...(proxy['idle-session-check-interval'] !== undefined ? { 'idle-session-check-interval': proxy['idle-session-check-interval'] } : {}),
                     ...(proxy['idle-session-timeout'] !== undefined ? { 'idle-session-timeout': proxy['idle-session-timeout'] } : {}),

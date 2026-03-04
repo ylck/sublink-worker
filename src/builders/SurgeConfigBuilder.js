@@ -62,9 +62,7 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
                     if (proxy.tls.server_name) {
                         surgeProxy += `, sni=${proxy.tls.server_name}`;
                     }
-                    if (proxy.tls.insecure) {
-                        surgeProxy += ', skip-cert-verify=true';
-                    }
+                    surgeProxy += ', skip-cert-verify=true';
                     if (proxy.tls.alpn) {
                         surgeProxy += `, alpn=${proxy.tls.alpn.join(',')}`;
                     }
@@ -83,9 +81,7 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
                 if (proxy.tls?.server_name) {
                     surgeProxy += `, sni=${proxy.tls.server_name}`;
                 }
-                if (proxy.tls?.insecure) {
-                    surgeProxy += ', skip-cert-verify=true';
-                }
+                surgeProxy += ', skip-cert-verify=true';
                 if (proxy.tls?.alpn) {
                     surgeProxy += `, alpn=${proxy.tls.alpn.join(',')}`;
                 }
@@ -103,9 +99,7 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
                 if (proxy.tls?.server_name) {
                     surgeProxy += `, sni=${proxy.tls.server_name}`;
                 }
-                if (proxy.tls?.insecure) {
-                    surgeProxy += ', skip-cert-verify=true';
-                }
+                surgeProxy += ', skip-cert-verify=true';
                 if (proxy.tls?.alpn) {
                     surgeProxy += `, alpn=${proxy.tls.alpn.join(',')}`;
                 }
@@ -118,9 +112,7 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
                 if (proxy.tls?.alpn) {
                     surgeProxy += `, alpn=${proxy.tls.alpn.join(',')}`;
                 }
-                if (proxy.tls?.insecure) {
-                    surgeProxy += ', skip-cert-verify=true';
-                }
+                surgeProxy += ', skip-cert-verify=true';
                 if (proxy.congestion_control) {
                     surgeProxy += `, congestion-controller=${proxy.congestion_control}`;
                 }

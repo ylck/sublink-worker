@@ -271,7 +271,9 @@ export function createTlsConfig(params) {
 		tls = {
 			enabled: true,
 			server_name: params.sni || params.host,
-			insecure: !!params?.allowInsecure || !!params?.insecure || !!params?.allow_insecure,
+			insecure: typeof params?.allowInsecure !== 'undefined' || typeof params?.insecure !== 'undefined' || typeof params?.allow_insecure !== 'undefined'
+				? (!!params?.allowInsecure || !!params?.insecure || !!params?.allow_insecure)
+				: true,
 			// utls: {
 			//   enabled: true,
 			//   fingerprint: "chrome"
