@@ -50,6 +50,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     interval: 300,
                     timeout: 5000,
                     lazy: true
+                },
+                override: {
+                    udp: true,
+                    'skip-cert-verify': true
                 }
             };
         });

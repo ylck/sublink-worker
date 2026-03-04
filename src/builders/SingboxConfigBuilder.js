@@ -93,9 +93,17 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         // Create a shallow copy to avoid mutating the original
         const sanitized = { ...proxy };
 
-        // Remove Clash-specific fields that are not valid in sing-box outbound configuration
-        // In sing-box, UDP is controlled by 'network' field (defaults to both tcp and udp)
-        // The 'udp: true/false' field is a Clash/Clash Meta specific setting
+        // In sing-box, UDP is enabled by default when 'network' field is omitted
+        // The 'network' field only accepts a single string ("tcp" or "udp"), not an array
+        // Delete it to ensure both TCP and UDP are supported
+        delete sanitized.network;
+
+        // Set skip_cert_verify: true by default if TLS is enabled
+        if (sanitized.tls && sanitized.tls.enabled) {
+            sanitized.tls.insecure = true;
+        }
+
+        // Remove Clash-specific 'udp' field - sing-box uses 'network' to control TCP/UDP
         delete sanitized.udp;
 
         // Remove 'alpn' from root level - it should only exist inside 'tls' object for sing-box

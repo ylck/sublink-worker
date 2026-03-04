@@ -60,7 +60,7 @@ function parsePluginString(pluginStr) {
     };
 }
 
-function createConfig(tag, server, server_port, method, password, pluginInfo) {
+function createConfig(tag, server, server_port, method, password, pluginInfo, extraParams = {}) {
     const config = {
         tag: tag || 'Shadowsocks',
         type: 'shadowsocks',
@@ -69,8 +69,18 @@ function createConfig(tag, server, server_port, method, password, pluginInfo) {
         method,
         password,
         network: 'tcp',
-        tcp_fast_open: false
+        tcp_fast_open: extraParams.tfo ?? false
     };
+
+    // Add udp field if specified in query params
+    if (typeof extraParams.udp !== 'undefined') {
+        config.udp = extraParams.udp;
+    }
+
+    // Add UDP over TCP if specified
+    if (extraParams.uot) {
+        config.udp_over_tcp = true;
+    }
 
     // Add plugin fields if present
     if (pluginInfo) {
@@ -91,7 +101,7 @@ export function parseShadowsocks(url) {
         tag = decodeURIComponent(tag);
     }
 
-    // Extract query parameters (for plugin support)
+    // Extract query parameters
     let queryString = '';
     const queryIndex = mainPart.indexOf('?');
     if (queryIndex !== -1) {
@@ -99,13 +109,26 @@ export function parseShadowsocks(url) {
         mainPart = mainPart.substring(0, queryIndex);
     }
 
-    // Parse plugin from query string
+    // Parse query string parameters
     let pluginInfo = null;
+    const extraParams = {};
     if (queryString) {
         const params = new URLSearchParams(queryString);
         const pluginParam = params.get('plugin');
         if (pluginParam) {
             pluginInfo = parsePluginString(pluginParam);
+        }
+        // Parse udp, tfo, uot flags from query string
+        if (params.has('udp')) {
+            extraParams.udp = params.get('udp') !== '0' && params.get('udp') !== 'false';
+        }
+        if (params.has('tfo') || params.has('fast-open')) {
+            const tfoVal = params.get('tfo') || params.get('fast-open');
+            extraParams.tfo = tfoVal === '1' || tfoVal === 'true';
+        }
+        if (params.has('uot')) {
+            const uotVal = params.get('uot');
+            extraParams.uot = uotVal === '1' || uotVal === 'true';
         }
     }
 
@@ -116,15 +139,30 @@ export function parseShadowsocks(url) {
             const [methodAndPass, serverInfo] = decodedLegacy.split('@');
             const [method, password] = methodAndPass.split(':');
             const [server, server_port] = parseServer(serverInfo);
-            return createConfig(tag, server, server_port, method, password, pluginInfo);
+            return createConfig(tag, server, server_port, method, password, pluginInfo, extraParams);
         }
 
-        let decodedParts = base64ToBinary(decodeURIComponent(base64)).split(':');
-        let method = decodedParts[0];
-        let password = decodedParts.slice(1).join(':');
+        // SIP002 format: userinfo@server:port
+        // userinfo can be:
+        //   1) Base64-encoded "method:password" (no ':' before base64 decode)
+        //   2) Plaintext URL-encoded "method:URLEncode(password)" (has ':' after URL decode)
+        const urlDecoded = decodeURIComponent(base64);
+        let method, password;
+        const colonIdx = urlDecoded.indexOf(':');
+        if (colonIdx > 0 && !urlDecoded.includes(' ')) {
+            // Plaintext format: method:password (e.g., SS 2022 from Sub Store)
+            method = urlDecoded.substring(0, colonIdx);
+            password = urlDecoded.substring(colonIdx + 1);
+        } else {
+            // Base64-encoded format: decode first, then split
+            const decoded = base64ToBinary(urlDecoded);
+            const decodedColonIdx = decoded.indexOf(':');
+            method = decoded.substring(0, decodedColonIdx);
+            password = decoded.substring(decodedColonIdx + 1);
+        }
         let [server, server_port] = parseServer(serverPart);
 
-        return createConfig(tag, server, server_port, method, password, pluginInfo);
+        return createConfig(tag, server, server_port, method, password, pluginInfo, extraParams);
     } catch (e) {
         console.error('Failed to parse shadowsocks URL:', e);
         return null;
